@@ -1,0 +1,18 @@
+Revision history for Perl extension Email::MIME::XMTP.
+
+0.32	Sun Apr 24 14:25:20 CEST 2005
+	- added proper BSD LICENSE
+
+0.31	Tue Apr 19 01:43:19 CEST 2005
+	- fixed bug in XMTP spec when multipart message adding xmtp:Body-Multipart tag
+	- fixed bug when generating xmtp:Body
+	- fixed bug to generate XMTP properties only if header is valid XML tag
+
+0.3	Mon Apr 18 20:25:36 CEST 2005
+	- added headers filter to as_XML() method
+
+0.2	Fri Apr  8 15:19:30 CEST 2005
+	- fixed bug when set_namespace() and custom tags are being used
+
+0.1	Thu Apr  7 23:12:24 CEST 2005
+	- original version with no parseXML() method support
