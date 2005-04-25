@@ -3,6 +3,8 @@
    <xmtp:Message
    xmlns:foo='http://foo.com/'
    xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+   xmlns:rdfs='http://www.w3.org/2000/01/rdf-schema#'
+   xmlns:thread='http://www.w3.org/2001/03/thread#'
    xmlns:xmtp='http://www.openhealth.org/xmtp#'
    rdf:about='mid:1021113100650.ZM12997@skye.rdg.opengroup.org'>
       <xmtp:Received>(qmail 1679 invoked by uid 503); 13 Nov 2002 10:10:49 -0000</xmtp:Received>
@@ -106,4 +108,5 @@ Austin Group Chair                          Apex Plaza,Forbury Road,
 Email: a.josey@opengroup.org                Reading,Berks.RG1 1AX,England
 Tel:   +44 118 9508311 ext 2250             Fax: +44 118 9500110
 </xmtp:Body>
+      <rdf:type rdf:resource='http://www.w3.org/2001/03/thread#Reply' />
 </xmtp:Message>

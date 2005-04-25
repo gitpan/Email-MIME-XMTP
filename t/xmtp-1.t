@@ -11,7 +11,7 @@ my $mail = Email::MIME->new($mail_text);
 isa_ok($mail, "Email::MIME");
 
 $mail->set_namespace( 'foo', 'http://foo.com/' );
-$mail->header_set( 'foo:BAR', "VALUE");
+$mail->header_set( 'X-XMTP-foo-BAR', "VALUE");
 
 my $xml = $mail->as_XML;
 

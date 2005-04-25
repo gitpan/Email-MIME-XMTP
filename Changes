@@ -1,5 +1,13 @@
 Revision history for Perl extension Email::MIME::XMTP.
 
+0.33
+	- added rdfs:seeAlso links for 'References' header
+	- added simple RDF threading using Annotea RDF Schema
+	  see http://www.w3.org/2001/03/thread
+	- updated namespace handling and custom tags and put them into standard
+	  MIME/SMTP extension header space X-XMTP-*
+	- force Content-Transfer-Encoding: base64 for non text and multipart things
+
 0.32	Sun Apr 24 14:25:20 CEST 2005
 	- added proper BSD LICENSE
 

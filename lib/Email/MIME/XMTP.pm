@@ -1,7 +1,7 @@
 package Email::MIME::XMTP;
 
 use vars qw[$VERSION];
-$VERSION = '0.32';
+$VERSION = '0.33';
 
 use Email::MIME;
 
@@ -15,7 +15,9 @@ use XML::Parser; #not used yet...
 
 my %namespaces = (
 	'rdf'  => "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-	'xmtp' => "http://www.openhealth.org/xmtp#"
+	'rdfs'  => "http://www.w3.org/2000/01/rdf-schema#",
+	'xmtp' => "http://www.openhealth.org/xmtp#",
+	'thread' => "http://www.w3.org/2001/03/thread#"
 	);
 
 =head1 NAME
@@ -97,7 +99,19 @@ sub _init_namespaces {
 
 =head2 set_namespace( PREFIX, URI )
 
-Set the XML Namespace PREFIX to URI
+Set the XML Namespace PREFIX to URI.
+
+Note a particular XML-Namespace can also be set and transported using 
+the special MIME header X-XMTP-xmlns as follows:
+
+ X-XMTP-xmlns-<prefix>: <uri>
+
+And then further referred into the MIME message using a X-XMTP-<prefix>
+header like:
+
+ X-XMTP-<prefix>: value
+
+In a multipart message each part can have its scoped namespaces.
 
 =cut
 
@@ -108,8 +122,14 @@ sub set_namespace {
 		unless( exists $self->{'_XML_namespaces'} );
 
 	return
-		if(	$prefix eq 'rdf' or
-			$prefix eq 'xmtp' );
+		unless( defined $prefix and
+			defined $uri );
+
+	return
+		if(	$prefix eq 'rdf'  or
+			$prefix eq 'rdfs' or
+			$prefix eq 'xmtp' or
+			$prefix eq 'thread' );
 
 	$self->{'_XML_namespaces'}->{ $prefix } = $uri;
 	};
@@ -126,9 +146,6 @@ fully qualified XML QNAME e.g. myprefix:My-Header.
 sub as_XML {	
 	my ( $self, @filter_headers ) = @_;
 
-	$self->_init_namespaces()
-		unless( exists $self->{'_XML_namespaces'} );
-
 	my $xml  = "<?xml version='1.0' ?>\n";
 
 	my @parts =  $self->parts; #take one part for the moment
@@ -141,6 +158,33 @@ sub as_XML {
 	my $i = 1;
 	foreach my $part ( @parts ) {
 		# well we should recurse to nested parts here too...
+
+		$part->_init_namespaces()
+			unless( exists $part->{'_XML_namespaces'} );
+
+		# restore namespaces unless specified explicitly (correct how is done?)
+		map {
+			# we check special MIME (hacked!) headers
+			# NOTE: not sure that mail filters/firewalls will let these through :-(
+			my $header = $_;
+			if( $header =~ m/^X-XMTP-xmlns-(.+)/ ) {
+				my $prefix = $1;
+				my @vals = grep { defined $_ } @{ $part->{head}->{ $header } };
+				my $uri = pop @vals; #always take the last header to allow override
+				$uri =~ s/^\s*//;
+				$uri =~ s/\s*$//;
+				$part->set_namespace( $prefix, $uri )
+					unless( exists $part->{'_XML_namespaces'}->{ $prefix } );
+				};
+		} keys %{$part->{head}};
+
+		unless( $i == 1 ) {
+			# inherit any namespace from top part unless set differently
+			map {
+				$part->set_namespace( $_, $self->{'_XML_namespaces'}->{ $_ } )
+					unless( exists $part->{'_XML_namespaces'}->{ $_ } );
+				} sort keys %{ $self->{'_XML_namespaces'} };
+			};
 
 		my $about =  $part->header( "Message-Id" );
 		if($about) {
@@ -156,23 +200,60 @@ sub as_XML {
 
 		$xml    .= "\n".("   " x $i)."<xmtp:Message";
 		map {
-			$xml    .= "\n".("   " x $i)."xmlns:". $_ ."='".$self->{'_XML_namespaces'}->{ $_ }."'";
-			} sort keys %{ $self->{'_XML_namespaces'} };
+			$xml    .= "\n".("   " x $i)."xmlns:". $_ ."='".$part->{'_XML_namespaces'}->{ $_ }."'";
+			} sort keys %{ $part->{'_XML_namespaces'} };
 		$xml    .= "\n".("   " x $i)."rdf:about='$about'"
 			if($about);
 		$xml    .= ">";
 
-		$xml    .= $part->_headers_as_XML( $i, @filter_headers );
-
+		my $body;
 		if(	($part->body) &&
 			(	( $#filter_headers < 0 ) ||
 				( grep /^xmtp:Body$/, @filter_headers ) ) ) {
 			# Binary data should be base64 encoded
-			my $body = (	$part->content_type =~ m/text/ or
-					$part->content_type =~ m/^\s*multipart/ ) ? $part->body : 
-						Email::MIME::Encodings::encode( base64 => $part->body );
-			$xml    .= "\n".("      " x $i)."<xmtp:Body>". $part->xml_escape( $body ) ."</xmtp:Body>";
+			if( $self->_part_BodyToEncode( $part ) ) {
+				# set Content-Transfer-Encoding header to base64 if not there
+				$body = Email::MIME::Encodings::encode( base64 => $part->body );
+
+				# force this due we do not make any euristics on Content-Type or Content-Transfer-Encoding yet
+				$part->header_set( 'Content-Transfer-Encoding', 'base64' );
+			} else {
+				$body = $part->body;
+				};
 			};
+
+		$xml    .= $part->_headers_as_XML( $i, @filter_headers );
+
+		$xml    .= "\n".("      " x $i)."<xmtp:Body>". $part->xml_escape( $body ) ."</xmtp:Body>"
+			if($body);
+
+		# add special ones to the generated our just to make the generated XML more RDF-ish
+		# NOTE: we do not actually need to have these headers into the MIME message itself due
+ 		#       we just map some special headers to some RDF meaningful ones.
+		#
+		# Add simple email threading using Annotea thread schema
+		# see http://www.w3.org/2001/03/thread
+		
+		# add rdfs:seeAlso to each 'References' header
+		my @seeAlso;
+		if( exists $part->{head}->{ 'References' } ) {
+			@seeAlso = map { split /\s+/; } grep { defined $_ } @{ $part->{head}->{ 'References' } };
+			my $i=0;
+			foreach my $seeAlso ( @seeAlso ) { # first is the root of the thread - last is the in-reply-to
+				$seeAlso =~ m/<([^>]+)>/;
+				$seeAlso = "mid:" . $1;
+				$xml    .= "\n".("      " x $i)."<rdfs:seeAlso rdf:resource='$seeAlso' />";
+				$xml    .= "\n".("      " x $i)."<thread:root rdf:resource='$seeAlso' />"
+					if($i==0);
+				$xml    .= "\n".("      " x $i)."<thread:inReplyTo rdf:resource='$seeAlso' />"
+					if($i==$#seeAlso);
+				$i++;
+				};
+			};
+
+		# make the xmtp:Message of type thread:Reply if a reply
+		$xml    .= "\n".("      " x $i)."<rdf:type rdf:resource='".$self->{'_XML_namespaces'}->{ 'thread' }."Reply' />"
+			if( exists $part->{head}->{ 'In-Reply-To' } );
 
 		unless($i==1) {
 			$xml .= "\n".("   " x $i)."</xmtp:Message>";
@@ -190,6 +271,14 @@ sub as_XML {
 	#print STDERR $xml;
 
 	return $xml;
+	};
+
+# return 1/0 whether or not the body has to be base64 encoded or not
+sub _part_BodyToEncode {
+	my ( $self, $part ) = @_;
+	
+	return	(	$part->content_type =~ m/text/ or
+			$part->content_type =~ m/^\s*multipart/ )  ? 0 : 1 ;
 	};
 
 sub _headers_as_XML {
@@ -255,8 +344,13 @@ sub _header_as_XML {
 				last;
 				};
 			};
+
+		# skip special ones
+		next
+			if( $field =~ m/^X-XMTP-xmlns-/ );
+
 		my $prefix;
-		$field =~ s/^([^:]+)://;
+		$field =~ s/^X-XMTP-(.+)-(.+)$/$2/;
 		if($1) {
 			if( exists $self->{'_XML_namespaces'}->{ $1 } ) {
 				$prefix = $1;

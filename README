@@ -45,7 +45,19 @@ METHODS
     filehandle ref respectively.
 
   set_namespace( PREFIX, URI )
-    Set the XML Namespace PREFIX to URI
+    Set the XML Namespace PREFIX to URI.
+
+    Note a particular XML-Namespace can also be set and transported using
+    the special MIME header X-XMTP-xmlns as follows:
+
+     X-XMTP-xmlns-<prefix>: <uri>
+
+    And then further referred into the MIME message using a X-XMTP-<prefix>
+    header like:
+
+     X-XMTP-<prefix>: value
+
+    In a multipart message each part can have its scoped namespaces.
 
   as_XML( [@FILTER_HEADERS] )
     Returns an XML XMTP representation of a message. Optionally the
