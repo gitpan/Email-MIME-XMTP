@@ -1,7 +1,7 @@
 package Email::MIME::XMTP;
 
 use vars qw[$VERSION];
-$VERSION = '0.33';
+$VERSION = '0.34';
 
 use Email::MIME;
 
@@ -146,7 +146,7 @@ fully qualified XML QNAME e.g. myprefix:My-Header.
 sub as_XML {	
 	my ( $self, @filter_headers ) = @_;
 
-	my $xml  = "<?xml version='1.0' ?>\n";
+	my $xml  = "<?xml version='1.0' encoding='UTF-8' ?>\n";
 
 	my @parts =  $self->parts; #take one part for the moment
 
@@ -169,7 +169,9 @@ sub as_XML {
 			my $header = $_;
 			if( $header =~ m/^X-XMTP-xmlns-(.+)/ ) {
 				my $prefix = $1;
-				my @vals = grep { defined $_ } @{ $part->{head}->{ $header } };
+				my @vals = grep {defined $_ } map {
+						$self->header( $_ ); # be sure Email::MIME decode headers to UTF-8 for me
+					} @{ $part->{head}->{ $header } };
 				my $uri = pop @vals; #always take the last header to allow override
 				$uri =~ s/^\s*//;
 				$uri =~ s/\s*$//;
@@ -190,6 +192,7 @@ sub as_XML {
 		if($about) {
 			$about =~ m/<([^>]+)>/;
 			$about = "mid:" . $1;
+			$about = $part->xml_escape( $about );
 			};
 
 		unless($i==1) {
@@ -200,31 +203,19 @@ sub as_XML {
 
 		$xml    .= "\n".("   " x $i)."<xmtp:Message";
 		map {
-			$xml    .= "\n".("   " x $i)."xmlns:". $_ ."='".$part->{'_XML_namespaces'}->{ $_ }."'";
+			$xml    .= "\n".("   " x $i)."xmlns:". $_ ."='".$part->xml_escape( $part->{'_XML_namespaces'}->{ $_ } )."'";
 			} sort keys %{ $part->{'_XML_namespaces'} };
 		$xml    .= "\n".("   " x $i)."rdf:about='$about'"
 			if($about);
 		$xml    .= ">";
 
-		my $body;
-		if(	($part->body) &&
-			(	( $#filter_headers < 0 ) ||
-				( grep /^xmtp:Body$/, @filter_headers ) ) ) {
-			# Binary data should be base64 encoded
-			if( $self->_part_BodyToEncode( $part ) ) {
-				# set Content-Transfer-Encoding header to base64 if not there
-				$body = Email::MIME::Encodings::encode( base64 => $part->body );
-
-				# force this due we do not make any euristics on Content-Type or Content-Transfer-Encoding yet
-				$part->header_set( 'Content-Transfer-Encoding', 'base64' );
-			} else {
-				$body = $part->body;
-				};
-			};
+		my $body = $part->xml_escape( $part->_XMLbodyEncode() )
+			if(	( $#filter_headers < 0 ) ||
+				( grep /^xmtp:Body$/, @filter_headers ) );
 
 		$xml    .= $part->_headers_as_XML( $i, @filter_headers );
 
-		$xml    .= "\n".("      " x $i)."<xmtp:Body>". $part->xml_escape( $body ) ."</xmtp:Body>"
+		$xml    .= "\n".("      " x $i)."<xmtp:Body>". $body ."</xmtp:Body>"
 			if($body);
 
 		# add special ones to the generated our just to make the generated XML more RDF-ish
@@ -237,11 +228,14 @@ sub as_XML {
 		# add rdfs:seeAlso to each 'References' header
 		my @seeAlso;
 		if( exists $part->{head}->{ 'References' } ) {
-			@seeAlso = map { split /\s+/; } grep { defined $_ } @{ $part->{head}->{ 'References' } };
+			@seeAlso = map { split /\s+/; } grep { defined $_ } map {
+				$self->header( $_ ); # be sure Email::MIME decode headers to UTF-8 for me
+				} @{ $part->{head}->{ 'References' } };
 			my $i=0;
 			foreach my $seeAlso ( @seeAlso ) { # first is the root of the thread - last is the in-reply-to
 				$seeAlso =~ m/<([^>]+)>/;
 				$seeAlso = "mid:" . $1;
+				$seeAlso = $part->xml_escape( $seeAlso );
 				$xml    .= "\n".("      " x $i)."<rdfs:seeAlso rdf:resource='$seeAlso' />";
 				$xml    .= "\n".("      " x $i)."<thread:root rdf:resource='$seeAlso' />"
 					if($i==0);
@@ -273,12 +267,48 @@ sub as_XML {
 	return $xml;
 	};
 
-# return 1/0 whether or not the body has to be base64 encoded or not
-sub _part_BodyToEncode {
-	my ( $self, $part ) = @_;
+# convert body to UTF-8 and encode it if necessary
+sub _XMLbodyEncode {
+	my ( $self ) = @_;
 	
-	return	(	$part->content_type =~ m/text/ or
-			$part->content_type =~ m/^\s*multipart/ )  ? 0 : 1 ;
+	my $body = $self->{body};
+		
+	# need to UTF-8 encode it, if possible (otheriwise it will print invalid XML and warn the user!)
+	if( eval { require Encode } ) {
+		eval {
+
+		if( $self->content_type =~ m/charset=([^;]+);?\s*/mi ) {
+			$body = Encode::decode( $1, $body );
+		} else {
+			$body = Encode::encode_utf8( $body );
+			};
+
+		};
+
+		# set Content-Type charset to UTF-8 for the output XML message
+		my $ct = $self->content_type;
+		$ct =~ s/charset=([^;]+)(;?\s*)/charset=UTF-8$2/mi;
+		$self->header_set( 'Content-Type', $ct );
+	} else {
+		#warn "XMTP message xmtp:body not UTF-8 encoded. The Encode module is missing in your Perl installation.\n";
+		};
+
+	my $cte = $self->header("Content-Transfer-Encoding");
+	if($cte) {
+		$body = Email::MIME::Encodings::encode( $cte, $body )
+			unless( $cte =~ /^7bit|8bit|binary/i );
+	} else {
+		unless(	$self->content_type =~ m/text/ or
+			$self->content_type =~ m/^\s*multipart/ ) {
+			# set Content-Transfer-Encoding header to base64 if not there
+			$body = Email::MIME::Encodings::encode( base64 => $body );
+
+			# force this due we do not make any euristics on Content-Type or Content-Transfer-Encoding yet
+			$self->header_set( 'Content-Transfer-Encoding', 'base64' );
+			};
+		};
+
+	return $body;
 	};
 
 sub _headers_as_XML {
@@ -297,7 +327,8 @@ sub _headers_as_XML {
 		my $thing = shift @order;
 		next unless exists $head{$thing}; # We have already dealt with it
 
-		$stuff .= $self->_header_as_XML($thing, $head{$thing}, $i)
+		my @hds = $self->header( $thing ); # be sure Email::MIME decode headers to UTF-8 for me
+		$stuff .= $self->_header_as_XML($thing, \@hds, $i)
 			if(	( $thing =~ m/^$Name$/o ) && #skip non-XML tag alike headers
 				(	( $#filter_headers < 0 ) ||
 					( grep /^$thing$/, @filter_headers ) ) );
@@ -362,10 +393,11 @@ sub _header_as_XML {
 			};
 	
 		if($#parts == 0 ) {
-			$ff = "\n".("      " x $i)."<$prefix:$field>". $self->xml_escape( $ff ) . "</$prefix:$field>";
+			$ff = "\n".("      " x $i)."<".$self->xml_escape( $prefix ).":".$self->xml_escape( $field ).
+							">". $self->xml_escape( $ff ) . "</".$self->xml_escape( $prefix ).":".$self->xml_escape( $field ).">";
 		} else {
 			# rdf:parseType="Resource"
-			$ff = "\n".("      " x $i)."<$prefix:$field rdf:parseType='Resource'>";
+			$ff = "\n".("      " x $i)."<".$self->xml_escape( $prefix ).":".$self->xml_escape( $field )." rdf:parseType='Resource'>";
 			foreach my $part ( @parts ) {
 				my $subfield;
 				my $subvalue;
@@ -381,9 +413,9 @@ sub _header_as_XML {
 					$subvalue =~ s/["']\s*$//gm;
 					};
 
-				$ff .= "\n".("         " x $i)."<$subfield>". $self->xml_escape( $subvalue ) . "</$subfield>";
+				$ff .= "\n".("         " x $i)."<".$self->xml_escape( $subfield ).">". $self->xml_escape( $subvalue ) . "</".$self->xml_escape( $subfield ).">";
 				};
-			$ff .= "\n".("      " x $i)."</$prefix:$field>";
+			$ff .= "\n".("      " x $i)."</". $self->xml_escape( $prefix ).":".$self->xml_escape( $field ).">";
 			};
 
 		$xml .= $ff;

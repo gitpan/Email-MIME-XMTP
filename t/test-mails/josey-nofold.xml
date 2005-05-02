@@ -1,4 +1,4 @@
-<?xml version='1.0' ?>
+<?xml version='1.0' encoding='UTF-8' ?>
 
    <xmtp:Message
    xmlns:foo='http://foo.com/'
@@ -26,7 +26,7 @@
       <xmtp:Resent-Sender>austin-group-l-request@opengroup.org</xmtp:Resent-Sender>
       <xmtp:Content-Type rdf:parseType='Resource'>
          <rdf:value>text/plain</rdf:value>
-         <xmtp:charset>us-ascii</xmtp:charset>
+         <xmtp:charset>UTF-8</xmtp:charset>
       </xmtp:Content-Type>
       <foo:BAR>VALUE</foo:BAR>
       <xmtp:Body>Joanna, All

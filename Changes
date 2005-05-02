@@ -1,6 +1,12 @@
 Revision history for Perl extension Email::MIME::XMTP.
 
-0.33
+0.34	Tue May  3 00:15:26 CEST 2005
+
+	- various fixes to properly decode MIME headers and body part to UTF-8
+	- added more fire-safe XML escape or misc tag names and attribute values
+
+0.33	Mon Apr 25 02:02:41 CEST 2005
+
 	- added rdfs:seeAlso links for 'References' header
 	- added simple RDF threading using Annotea RDF Schema
 	  see http://www.w3.org/2001/03/thread
@@ -9,18 +15,23 @@ Revision history for Perl extension Email::MIME::XMTP.
 	- force Content-Transfer-Encoding: base64 for non text and multipart things
 
 0.32	Sun Apr 24 14:25:20 CEST 2005
+
 	- added proper BSD LICENSE
 
 0.31	Tue Apr 19 01:43:19 CEST 2005
+
 	- fixed bug in XMTP spec when multipart message adding xmtp:Body-Multipart tag
 	- fixed bug when generating xmtp:Body
 	- fixed bug to generate XMTP properties only if header is valid XML tag
 
 0.3	Mon Apr 18 20:25:36 CEST 2005
+
 	- added headers filter to as_XML() method
 
 0.2	Fri Apr  8 15:19:30 CEST 2005
+
 	- fixed bug when set_namespace() and custom tags are being used
 
 0.1	Thu Apr  7 23:12:24 CEST 2005
+
 	- original version with no parseXML() method support
