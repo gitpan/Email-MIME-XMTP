@@ -1,7 +1,7 @@
 package Email::MIME::XMTP;
 
 use vars qw[$VERSION];
-$VERSION = '0.34';
+$VERSION = '0.35';
 
 use Email::MIME;
 
@@ -273,6 +273,14 @@ sub _XMLbodyEncode {
 	
 	my $body = $self->{body};
 		
+	my $cte = $self->header("Content-Transfer-Encoding");
+
+	if( $cte eq 'quoted-printable' ) {
+		$body = Email::MIME::Encodings::decode( 'quotedprint' => $body );
+	} elsif( $cte eq 'base64' ) {
+		$body = Email::MIME::Encodings::decode( 'base64' => $body );
+		};
+
 	# need to UTF-8 encode it, if possible (otheriwise it will print invalid XML and warn the user!)
 	if( eval { require Encode } ) {
 		eval {
@@ -293,11 +301,7 @@ sub _XMLbodyEncode {
 		#warn "XMTP message xmtp:body not UTF-8 encoded. The Encode module is missing in your Perl installation.\n";
 		};
 
-	my $cte = $self->header("Content-Transfer-Encoding");
-	if($cte) {
-		$body = Email::MIME::Encodings::encode( $cte, $body )
-			unless( $cte =~ /^7bit|8bit|binary/i );
-	} else {
+	unless( $cte ) {
 		unless(	$self->content_type =~ m/text/ or
 			$self->content_type =~ m/^\s*multipart/ ) {
 			# set Content-Transfer-Encoding header to base64 if not there
