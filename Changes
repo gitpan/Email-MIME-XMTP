@@ -1,5 +1,11 @@
 Revision history for Perl extension Email::MIME::XMTP.
 
+0.36	Wed May 11 13:37:15 CEST 2005
+
+	- better fix for 0.35 body MIME encoding problem/issue. The
+	  original base64 or quoted-printable Content-Transfer-Encoding is
+	  left untouched. And encoded to UTF-8 and then base64 if necessary.
+
 0.35	Tue May 10 18:10:27 CEST 2005
 	
 	- fixed bug when decoding body of MIME messages and 

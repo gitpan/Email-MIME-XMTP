@@ -1,7 +1,7 @@
 package Email::MIME::XMTP;
 
 use vars qw[$VERSION];
-$VERSION = '0.35';
+$VERSION = '0.36';
 
 use Email::MIME;
 
@@ -275,39 +275,38 @@ sub _XMLbodyEncode {
 		
 	my $cte = $self->header("Content-Transfer-Encoding");
 
-	if( $cte eq 'quoted-printable' ) {
-		$body = Email::MIME::Encodings::decode( 'quotedprint' => $body );
-	} elsif( $cte eq 'base64' ) {
-		$body = Email::MIME::Encodings::decode( 'base64' => $body );
-		};
+	if(	$cte ne 'base64' and
+		$cte ne 'quoted-printable' ) {
+		# NOTE: we do not further check $cte here...
 
-	# need to UTF-8 encode it, if possible (otheriwise it will print invalid XML and warn the user!)
-	if( eval { require Encode } ) {
-		eval {
+		# need to UTF-8 encode it then, if possible (otheriwise it will print invalid XML and warn the user!)
+		if( eval { require Encode } ) {
+			eval {
 
-		if( $self->content_type =~ m/charset=([^;]+);?\s*/mi ) {
-			$body = Encode::decode( $1, $body );
-		} else {
+			$body = Encode::decode( $1, $body )
+				if( $self->content_type =~ m/charset=([^;]+);?\s*/mi );
+
 			$body = Encode::encode_utf8( $body );
+
 			};
 
-		};
+			# set Content-Type charset to UTF-8 for the output XML message
+			my $ct = $self->content_type;
+			$self->header_set( 'Content-Type', $ct )
+				if( $ct =~ s/charset=([^;]+)(;?\s*)/charset=UTF-8$2/mi );
 
-		# set Content-Type charset to UTF-8 for the output XML message
-		my $ct = $self->content_type;
-		$ct =~ s/charset=([^;]+)(;?\s*)/charset=UTF-8$2/mi;
-		$self->header_set( 'Content-Type', $ct );
-	} else {
-		#warn "XMTP message xmtp:body not UTF-8 encoded. The Encode module is missing in your Perl installation.\n";
-		};
+			# we do not update Content-Transfer-Encoding to 8bit - correct?
+		} else {
+			#warn "XMTP message xmtp:body not UTF-8 encoded. The Encode module is missing in your Perl installation.\n";
+			};
 
-	unless( $cte ) {
-		unless(	$self->content_type =~ m/text/ or
-			$self->content_type =~ m/^\s*multipart/ ) {
+		# force base64 encoding due we do not make any euristics on Content-Type or Content-Transfer-Encoding yet
+		if(	$cte eq 'binary' or
+			(	$self->content_type !~ m/text/ and
+				$self->content_type !~ m/^\s*multipart/ ) ) {
 			# set Content-Transfer-Encoding header to base64 if not there
 			$body = Email::MIME::Encodings::encode( base64 => $body );
 
-			# force this due we do not make any euristics on Content-Type or Content-Transfer-Encoding yet
 			$self->header_set( 'Content-Transfer-Encoding', 'base64' );
 			};
 		};

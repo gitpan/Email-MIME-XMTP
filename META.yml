@@ -1,6 +1,6 @@
 ---
 name: Email-MIME-XMTP
-version: 0.35
+version: 0.36
 author:
   - Alberto Reggiori <alberto@asemantics.com>
 abstract: Add XMTP support to Email::MIME
@@ -14,8 +14,8 @@ requires:
 provides:
   Email::MIME:
     file: lib/Email/MIME/XMTP.pm
-    version: 0.35
+    version: 0.36
   Email::MIME::XMTP:
     file: lib/Email/MIME/XMTP.pm
-    version: 0.35
+    version: 0.36
 generated_by: Module::Build version 0.2608
