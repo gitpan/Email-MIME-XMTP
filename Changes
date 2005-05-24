@@ -1,5 +1,10 @@
 Revision history for Perl extension Email::MIME::XMTP.
 
+0.37	Tue May 24 01:42:29 CEST 2005
+
+	-  avoid to emit xmtp:Body-Multipart and visit sub-parts of
+	   a MIME message if not explicitly requested (or no filters)
+
 0.36	Wed May 11 13:37:15 CEST 2005
 
 	- better fix for 0.35 body MIME encoding problem/issue. The

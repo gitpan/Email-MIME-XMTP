@@ -1,7 +1,7 @@
 package Email::MIME::XMTP;
 
 use vars qw[$VERSION];
-$VERSION = '0.36';
+$VERSION = '0.37';
 
 use Email::MIME;
 
@@ -196,6 +196,10 @@ sub as_XML {
 			};
 
 		unless($i==1) {
+			next
+				unless(	( $#filter_headers < 0 ) ||
+					( grep /^xmtp:Body-Multipart$/, @filter_headers ) );
+
 			# fix XMTP bug - proper RDF striped nesting
 			$xml    .= "\n".("   " x $i)."<xmtp:Body-Multipart>"
 				if( $self->content_type =~ m/^\s*multipart/ );
