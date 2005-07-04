@@ -6,7 +6,7 @@ SYNOPSIS
         use Email::MIME::XMTP;
         my $mail = Email::MIME->new($text);
 
-        # Email::XMTP extra methods
+        # Email::MIME::XMTP extra methods
         my $xmlstring = $mail->as_XML;
 
         my $mailer = Email::Simple->new;
@@ -36,8 +36,8 @@ METHODS
 
     This uses the familiar hash syntax, so an example might be:
 
-            use Email::XMTP;
-            my $mailer = new Email::XMTP;
+            use Email::MIME::XMTP;
+            my $mailer = new Email::MIME::XMTP;
 
             my $mail = $mailer->parseXML( filename => 'example-mail-xmtp.xml');
 

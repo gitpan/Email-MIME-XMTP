@@ -1,7 +1,7 @@
 package Email::MIME::XMTP;
 
 use vars qw[$VERSION];
-$VERSION = '0.37';
+$VERSION = '0.38';
 
 use Email::MIME;
 
@@ -30,7 +30,7 @@ Email::MIME::XMTP - Extends Email::MIME objects to read and write XMTP
     use Email::MIME::XMTP;
     my $mail = Email::MIME->new($text);
 
-    # Email::XMTP extra methods
+    # Email::MIME::XMTP extra methods
     my $xmlstring = $mail->as_XML;
 
     my $mailer = Email::Simple->new;
@@ -63,8 +63,8 @@ One must be spacefied - it is an error if none is passed.
 
 This uses the familiar hash syntax, so an example might be:
 
-	use Email::XMTP;
-	my $mailer = new Email::XMTP;
+	use Email::MIME::XMTP;
+	my $mailer = new Email::MIME::XMTP;
 
 	my $mail = $mailer->parseXML( filename => 'example-mail-xmtp.xml');
 
@@ -306,8 +306,8 @@ sub _XMLbodyEncode {
 
 		# force base64 encoding due we do not make any euristics on Content-Type or Content-Transfer-Encoding yet
 		if(	$cte eq 'binary' or
-			(	$self->content_type !~ m/text/ and
-				$self->content_type !~ m/^\s*multipart/ ) ) {
+			(	$self->content_type !~ m/text/i and
+				$self->content_type !~ m/^\s*multipart/i ) ) {
 			# set Content-Transfer-Encoding header to base64 if not there
 			$body = Email::MIME::Encodings::encode( base64 => $body );
 

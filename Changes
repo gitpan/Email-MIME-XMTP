@@ -1,5 +1,11 @@
 Revision history for Perl extension Email::MIME::XMTP.
 
+0.38	Mon Jul  4 19:22:27 CEST 2005
+
+	- fixed bug in _XMLbodyEncode() to make content-type checking
+	  case insensistive
+	- added POD patches as reported by Mike Castel <dalgoda@ix.netcom.com>
+
 0.37	Tue May 24 01:42:29 CEST 2005
 
 	-  avoid to emit xmtp:Body-Multipart and visit sub-parts of
