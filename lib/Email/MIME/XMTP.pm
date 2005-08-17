@@ -1,7 +1,7 @@
 package Email::MIME::XMTP;
 
 use vars qw[$VERSION];
-$VERSION = '0.38';
+$VERSION = '0.39';
 
 use Email::MIME;
 
@@ -306,7 +306,9 @@ sub _XMLbodyEncode {
 
 		# force base64 encoding due we do not make any euristics on Content-Type or Content-Transfer-Encoding yet
 		if(	$cte eq 'binary' or
-			(	$self->content_type !~ m/text/i and
+			(	defined $self->content_type and
+				$self->content_type ne '' and
+				$self->content_type !~ m/text/i and
 				$self->content_type !~ m/^\s*multipart/i ) ) {
 			# set Content-Transfer-Encoding header to base64 if not there
 			$body = Email::MIME::Encodings::encode( base64 => $body );

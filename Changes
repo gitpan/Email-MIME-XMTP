@@ -1,5 +1,10 @@
 Revision history for Perl extension Email::MIME::XMTP.
 
+0.39	Thu Aug 18 01:44:46 CEST 2005
+
+	- fixed bug when Content-Type is not specified; and default to text/plain
+	  (and do not base64-encode body text)
+
 0.38	Mon Jul  4 19:22:27 CEST 2005
 
 	- fixed bug in _XMLbodyEncode() to make content-type checking
