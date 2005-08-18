@@ -1,7 +1,7 @@
 package Email::MIME::XMTP;
 
 use vars qw[$VERSION];
-$VERSION = '0.39';
+$VERSION = '0.40';
 
 use Email::MIME;
 
@@ -217,7 +217,16 @@ sub as_XML {
 			if(	( $#filter_headers < 0 ) ||
 				( grep /^xmtp:Body$/, @filter_headers ) );
 
-		$xml    .= $part->_headers_as_XML( $i, @filter_headers );
+		# need to UTF-8 encode headers then, if possible (otheriwise it will print invalid XML and warn the user!)
+		if( eval { require Encode } ) {
+			eval {
+				$xml    .= Encode::encode_utf8( $part->_headers_as_XML( $i, @filter_headers ) );
+				};
+		} else {
+			#warn "XMTP message header/s not UTF-8 encoded. The Encode module is missing in your Perl installation.\n";
+
+			$xml    .= $part->_headers_as_XML( $i, @filter_headers );
+			};
 
 		$xml    .= "\n".("      " x $i)."<xmtp:Body>". $body ."</xmtp:Body>"
 			if($body);

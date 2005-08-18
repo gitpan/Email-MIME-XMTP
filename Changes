@@ -1,5 +1,10 @@
 Revision history for Perl extension Email::MIME::XMTP.
 
+0.40	Thu Aug 18 17:53:06 CEST 2005
+
+	- fixed nusty bug when serializing to XML headers combined with body. Make
+	  sure that headers as decoded and body is a valid UTF-8 string into XML.
+
 0.39	Thu Aug 18 01:44:46 CEST 2005
 
 	- fixed bug when Content-Type is not specified; and default to text/plain

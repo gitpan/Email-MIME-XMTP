@@ -6,8 +6,7 @@ sub read_file { local $/; local *FH; open FH, shift or die $!; return <FH> }
 use_ok("Email::MIME");
 use_ok("Email::MIME::XMTP");
 # Very basic functionality test
-#my $mail_text = read_file("t/test-mails/josey-nofold");
-my $mail_text = read_file("/Users/reggiori/tmp/foo.txt");
+my $mail_text = read_file("t/test-mails/josey-nofold");
 my $mail = Email::MIME->new($mail_text);
 isa_ok($mail, "Email::MIME");
 
@@ -16,7 +15,7 @@ $mail->header_set( 'X-XMTP-foo-BAR', "VALUE");
 
 my $xml = $mail->as_XML;
 
-print $xml."\n";exit;
+#print $xml."\n";exit;
 #open(FF,">foo");
 #binmode(FF);
 #print FF $xml;
