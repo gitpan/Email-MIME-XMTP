@@ -1,5 +1,10 @@
 Revision history for Perl extension Email::MIME::XMTP.
 
+0.41	Fri Aug 19 12:40:42 CEST 2005
+
+	- fixed proper bug when decoding email body if no charset specified into
+	  Content-Type header; it is now default to UTF-8.
+
 0.40	Thu Aug 18 17:53:06 CEST 2005
 
 	- fixed nusty bug when serializing to XML headers combined with body. Make

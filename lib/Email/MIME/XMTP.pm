@@ -1,7 +1,7 @@
 package Email::MIME::XMTP;
 
 use vars qw[$VERSION];
-$VERSION = '0.40';
+$VERSION = '0.41';
 
 use Email::MIME;
 
@@ -296,8 +296,14 @@ sub _XMLbodyEncode {
 		if( eval { require Encode } ) {
 			eval {
 
-			$body = Encode::decode( $1, $body )
-				if( $self->content_type =~ m/charset=([^;]+);?\s*/mi );
+			if( $self->content_type =~ m/charset=([^;]+);?\s*/mi ) {
+				$body = Encode::decode( $1, $body );
+			} else {
+				# default to UTF-8 if no charset set - correct? what the RFC syas here?
+				# NOTE: due that ASCII is covered by UTF-8 it should be safe enough here - and assuming a client/MTA
+				#       will add proper charset="...somthing..." to their Content-Type header otherwise
+				$body = Encode::decode( "utf8", $body );
+				};
 
 			$body = Encode::encode_utf8( $body );
 
