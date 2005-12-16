@@ -1,7 +1,7 @@
 package Email::MIME::XMTP;
 
 use vars qw[$VERSION];
-$VERSION = '0.41';
+$VERSION = '0.42';
 
 use Email::MIME;
 
@@ -170,7 +170,10 @@ sub as_XML {
 			if( $header =~ m/^X-XMTP-xmlns-(.+)/ ) {
 				my $prefix = $1;
 				my @vals = grep {defined $_ } map {
-						$self->header( $_ ); # be sure Email::MIME decode headers to UTF-8 for me
+						my $h = Encode::decode('MIME-Q', $self->header( $_ ));
+						$h = Encode::decode_utf8( $h )
+							unless( Encode::is_utf8( $h ) );
+						$h;
 					} @{ $part->{head}->{ $header } };
 				my $uri = pop @vals; #always take the last header to allow override
 				$uri =~ s/^\s*//;
@@ -188,7 +191,9 @@ sub as_XML {
 				} sort keys %{ $self->{'_XML_namespaces'} };
 			};
 
-		my $about =  $part->header( "Message-Id" );
+		my $about =  Encode::decode('MIME-Q', $part->header( "Message-Id" ) );
+		$about = Encode::decode_utf8( $about )
+			unless( Encode::is_utf8( $about ) );   
 		if($about) {
 			$about =~ m/<([^>]+)>/;
 			$about = "mid:" . $1;
@@ -218,15 +223,7 @@ sub as_XML {
 				( grep /^xmtp:Body$/, @filter_headers ) );
 
 		# need to UTF-8 encode headers then, if possible (otheriwise it will print invalid XML and warn the user!)
-		if( eval { require Encode } ) {
-			eval {
-				$xml    .= Encode::encode_utf8( $part->_headers_as_XML( $i, @filter_headers ) );
-				};
-		} else {
-			#warn "XMTP message header/s not UTF-8 encoded. The Encode module is missing in your Perl installation.\n";
-
-			$xml    .= $part->_headers_as_XML( $i, @filter_headers );
-			};
+		$xml    .= $part->_headers_as_XML( $i, @filter_headers );
 
 		$xml    .= "\n".("      " x $i)."<xmtp:Body>". $body ."</xmtp:Body>"
 			if($body);
@@ -242,7 +239,10 @@ sub as_XML {
 		my @seeAlso;
 		if( exists $part->{head}->{ 'References' } ) {
 			@seeAlso = map { split /\s+/; } grep { defined $_ } map {
-				$self->header( $_ ); # be sure Email::MIME decode headers to UTF-8 for me
+				my $h = Encode::decode('MIME-Q', $self->header( $_ ));
+				$h = Encode::decode_utf8( $h )
+					unless( Encode::is_utf8( $h ) );
+				$h;
 				} @{ $part->{head}->{ 'References' } };
 			my $i=0;
 			foreach my $seeAlso ( @seeAlso ) { # first is the root of the thread - last is the in-reply-to
@@ -296,17 +296,17 @@ sub _XMLbodyEncode {
 		if( eval { require Encode } ) {
 			eval {
 
+			# default to UTF-8 if no charset set - correct? what the RFC really says here? I guess force US-ASCII
+			# NOTE: due that US-ASCII is covered by UTF-8 it should be safe enough here - and assuming a client/MTA
+			#       will add proper charset="...somthing..." to their Content-Type header otherwise
+
+			# both the following decode() set the internal Perl UTF-8 flag (see man Encode)
 			if( $self->content_type =~ m/charset=([^;]+);?\s*/mi ) {
 				$body = Encode::decode( $1, $body );
 			} else {
-				# default to UTF-8 if no charset set - correct? what the RFC syas here?
-				# NOTE: due that ASCII is covered by UTF-8 it should be safe enough here - and assuming a client/MTA
-				#       will add proper charset="...somthing..." to their Content-Type header otherwise
-				$body = Encode::decode( "utf8", $body );
+				$body = Encode::decode_utf8( $body )
+					unless( Encode::is_utf8( $body ) );
 				};
-
-			$body = Encode::encode_utf8( $body );
-
 			};
 
 			# set Content-Type charset to UTF-8 for the output XML message
@@ -315,6 +315,7 @@ sub _XMLbodyEncode {
 				if( $ct =~ s/charset=([^;]+)(;?\s*)/charset=UTF-8$2/mi );
 
 			# we do not update Content-Transfer-Encoding to 8bit - correct?
+			$self->header_set( 'Content-Transfer-Encoding', '8bit' );
 		} else {
 			#warn "XMTP message xmtp:body not UTF-8 encoded. The Encode module is missing in your Perl installation.\n";
 			};
@@ -351,7 +352,23 @@ sub _headers_as_XML {
 		my $thing = shift @order;
 		next unless exists $head{$thing}; # We have already dealt with it
 
-		my @hds = $self->header( $thing ); # be sure Email::MIME decode headers to UTF-8 for me
+		my @hds = map {
+                        ( Encode::is_utf8( $_ ) ) ? $_ : Encode::decode_utf8( $_ );
+		} map {
+			Encode::decode('MIME-Q', $_ );
+		} $self->header( $thing ); # be sure Email::MIME decode headers to UTF-8 for me
+
+		if( eval { require Encode } ) {
+                        eval {
+                                @hds = map {
+					# the following set the internal Perl UTF-8 flag (see man Encode)
+					( Encode::is_utf8( $_ ) ) ? $_ : Encode::decode_utf8( $_ );
+					} @hds;
+                                };
+                } else {
+                        #warn "XMTP message header/s not UTF-8 encoded. The Encode module is missing in your Perl installation.\n";
+                        };
+
 		$stuff .= $self->_header_as_XML($thing, \@hds, $i)
 			if(	( $thing =~ m/^$Name$/o ) && #skip non-XML tag alike headers
 				(	( $#filter_headers < 0 ) ||

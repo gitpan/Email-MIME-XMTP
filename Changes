@@ -1,5 +1,12 @@
 Revision history for Perl extension Email::MIME::XMTP.
 
+0.42	Fri Dec 16 15:58:03 GMT 2005
+
+	- fixed misc UTF-8 bugs which caused double encoding nightmare
+	- force Content-Transfer-Encoding to 8bit of output message body if not
+	  binary - or already quoted-printable or base64 encoded
+	- added 'MIME-Q' decode of headers
+
 0.41	Fri Aug 19 12:40:42 CEST 2005
 
 	- fixed proper bug when decoding email body if no charset specified into

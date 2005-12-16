@@ -29,6 +29,7 @@
          <xmtp:charset>UTF-8</xmtp:charset>
       </xmtp:Content-Type>
       <foo:BAR>VALUE</foo:BAR>
+      <xmtp:Content-Transfer-Encoding>8bit</xmtp:Content-Transfer-Encoding>
       <xmtp:Body>Joanna, All
 
 Thanks. I got the following response from Fred Tydeman.
